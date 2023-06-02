@@ -1,0 +1,254 @@
+title: "WordPress on OCI using Always Free Compute Ampere Instance"
+description: "WordPress on OCI using Always Free Compute Ampere Instance"
+schemaVersion: 1.0.0
+version: "202306021"
+locale: "en"
+
+
+variableGroups:
+  - title: "General Configuration"
+    visible: false
+    variables:
+      - tenancy_ocid
+      - compartment_ocid
+      - region
+      - ssh_authorized_keys_path
+      - ssh_private_key_path
+      - private_key_path
+      - dns_label
+      - fingerprint
+      - label_prefix
+      - node_image_id
+      - user_ocid
+      - nb_of_webserver
+
+  - title: Required Variables
+    visible: true
+    variables:
+      - admin_password
+      - wp_instance_name
+      - wp_name
+      - wp_password
+      - wp_schema
+
+  - title: Shapes
+    visible: true
+    variables:
+      - node_shape
+      - node_flex_shape_ocpus
+      - node_flex_shape_memory
+      - mysql_shape
+
+  - title: Network
+    visible: true
+    variables:
+      - vcn
+      - vcn_cidr
+
+  - title: Use Existing Intrastructure
+    visible: true
+    variables:
+      - useExistingInfra
+      - existing_vcn_ocid
+      - existing_internet_gateway_ocid
+      - existing_nat_gateway_ocid
+      - existing_public_route_table_ocid
+      - existing_public_security_list_ocid
+      - existing_public_security_list_http_ocid
+      - existing_public_subnet_ocid
+
+variables:
+  region:
+    type: oci:identity:region:name
+    visible: false
+    required: true
+    title: ${Messages.solutionsHub.genericVariables.region.title()}
+    description: ${Messages.solutionsHub.genericVariables.region.description()}
+
+  useExistingInfra:
+    title: Use Existing Infrastructure Resources
+    type: boolean
+    default: false
+
+  node_shape:
+    type: oci:core:instanceshape:name
+    title: "Select a shape for the WordPress Compute Instance"
+    dependsOn:
+      compartmentId: compartment_ocid
+
+  node_flex_shape_memory:
+    type: number
+    required: false
+    minimum: 1
+    maximum: 128
+    multipleOf: 1
+    default: 24
+    title: "Flex Shape Memory (GB)"
+    description: "Choose number GB for Flex Shape Memory."
+    visible:
+      and:
+        - or:
+          - eq:
+            - node_shape
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - node_shape
+            - "VM.Optimized3.Flex"
+
+  node_flex_shape_ocpus:
+    type: number
+    required: false
+    minimum: 1
+    maximum: 128
+    multipleOf: 1
+    default: 4
+    title: "Flex Shape OCPUs"
+    description: "Choose number of OCPUs for Flex Shape."
+    visible:
+      and:
+        - or:
+          - eq:
+            - node_shape
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard.A1.Flex"
+          - eq:
+            - node_shape
+            - "VM.Optimized3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard3.Flex"
+          - eq:
+            - node_shape
+            - "VM.Standard4.Flex"
+
+
+  existing_vcn_ocid:
+    type: oci:core:vcn:id
+    visible: ${useExistingInfra}
+    title: VNC OCID
+    description: OCID of existing VCN to use
+    dependsOn:
+      compartmentId: compartment_ocid
+  existing_internet_gateway_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Internet Gateway OCID
+    description: OCID of existing Internet Gateway to use
+  existing_nat_gateway_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: NAT Gateway OCID
+    description: OCID of existing NAT Gateway to use
+  existing_public_route_table_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Public Routing Table OCID
+    description: OCID of existing Public Routing Table to use
+  existing_public_security_list_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: Public Security List OCID
+    description: OCID of existing Public Security List (ssh access) to use
+  existing_public_security_list_http_ocid:
+    type: string
+    visible: ${useExistingInfra}
+    title: HTTP Public Security List OCID
+    description: OCID of existing HTTP Public Security List to use
+  existing_public_subnet_ocid:
+    type: oci:core:subnet:id
+    dependsOn:
+      compartmentId: compartment_ocid
+      vcnId: existing_vcn_ocid
+    visible: ${useExistingInfra}
+    title: Public Subnet OCID
+    description: OCID of existing Public Subnet to use
+
+  vcn:
+    type: string
+    visible: false
+    required: true
+    title: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_display_name.title()}
+    description: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_display_name.description()}
+
+  vcn_cidr:
+    type: string
+    visible: false
+    required: false
+    pattern: "^(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]).(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\/(3[0-2]|[1-2]?[0-9])$"
+    title: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_cidr.title()}
+    description: ${Messages.solutionsHub.solutions.defaultVCN.variables.vcn_cidr.description()}
+
+  compartment_ocid:
+    type: oci:identity:compartment:id
+    required: true
+    title: Compartment
+    description: Compartment where you want to create the solution resources
+
+  admin_password:
+    type: password
+    required: true
+    title: MDS Admin User's Password
+    description: Password for MySQL Database Service's admin user
+    pattern: "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\\\"\\\\|,.<>\\/?]).{8,32}$"
+
+  wp_password:
+    type: password
+    required: true
+    title: MySQL WordPress User's Password
+    description: MySQL Password for WordPress User
+    pattern: "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\\\"\\\\|,.<>\\/?]).{8,32}$"
+
+  wp_instance_name:
+    type: string
+    required: true
+    title: WordPress Compute Instance's name
+
+  wp_name:
+    type: string
+    required: true
+    title: MySQL WordPress Username
+    description: MySQL Username for WordPress
+    minLength: 2
+    maxLength: 14
+    pattern: "^[a-zA-Z][a-zA-Z0-9]+$"
+
+  wp_schema:
+    type: string
+    required: true
+    title: MySQL WordPress Schema
+    description: MySQL Schema/Database for WordPress
+
+outputGroups:
+- title: "WordPress Public IP"
+  outputs:
+    - wordpress_public_ip
+- title: "WordPress Database Credentials"
+  outputs:
+    - wordpress_db_user
+    - wordpress_db_password
+- title: "SSH Private Key"
+  outputs:
+    - ssh_private_key
+
+outputs:
+  wordpress_public_ip:
+    title: "Your new deployed WordPress Site"
+  wordpress_db_user:
+    title: "WordPress MySQL User"   
+  wordpress_db_password:
+    title: "WordPress MySQL User's Password"
+    sensitive: true
+  ssh_private_key:
+    title: "Generated SSH private key"
+    sensitive: true    
